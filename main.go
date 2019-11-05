@@ -12,14 +12,18 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"os/exec"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
 
 const (
-	v2subConfig = "v2sub.json"
+	v2subConfig = "/etc/v2sub.json"
+	v2rayConfig = "/etc/v2ray.json"
 	duration    = 5 * time.Second // 建议至少 5s
+	ruleUrl     = "https://raw.githubusercontent.com/PaPerseller/chn-iplist/master/v2ray-config_rule.txt"
 
 	version = "1.0.0"
 )
@@ -29,13 +33,17 @@ var flags = struct {
 	sort    bool
 	url     string
 	version bool
+	ping    bool
+	reload  bool
 }{}
 
 func main() {
-	flag.BoolVar(&flags.sub, "sub", false, "是否刷新订阅")
+	flag.BoolVar(&flags.sub, "sub", false, "是否刷新订阅, 默认[否]")
 	flag.StringVar(&flags.url, "url", "", "订阅地址")
-	flag.BoolVar(&flags.sort, "sort", false, "是否按延迟排序")
+	flag.BoolVar(&flags.sort, "sort", false, "是否按延迟排序, 默认[否]")
 	flag.BoolVar(&flags.version, "version", false, "显示版本")
+	flag.BoolVar(&flags.ping, "ping", true, "是否对所有节点测试延迟, 默认[是]")
+	flag.BoolVar(&flags.reload, "reload", false, "是否刷新配置, 默认[否]")
 
 	flag.Parse()
 
@@ -44,11 +52,20 @@ func main() {
 		return
 	}
 
+	cfg, err := ReadConfig(v2subConfig)
+	if err != nil {
+		fmt.Printf("无法获取配置信息, 将创建 %s\n", v2subConfig)
+		cfg = template.ConfigTemplate
+	}
+
+	fmt.Println("获取路由...")
+	ruleCh := make(chan *types.RouterConfig, 1)
+	go GetRule(ruleUrl, ruleCh)
+
 	var nodes = func() types.Nodes {
-		cfg, err := ReadConfig("./" + v2subConfig)
-		if err != nil {
-			fmt.Printf("无法找到 %s, 将在当前目录下创建\n", v2subConfig)
-			cfg = template.ConfigTemplate
+		if !flags.sub && flags.url == "" && len(cfg.Nodes) != 0 {
+			fmt.Println("使用缓存的订阅信息, 如需刷新请指定 -sub")
+			return cfg.Nodes
 		}
 
 		if flags.url != "" {
@@ -91,14 +108,17 @@ func main() {
 
 		fmt.Printf("订阅信息解析完毕, 用时 %ds\n", time.Now().Second()-subStart.Second())
 
+		cfg.Nodes = nodes
 		return nodes
 	}()
 
-	fmt.Printf("正在测试延迟, 等待 %s...\n", duration.String())
-	ping.Ping(nodes, duration)
+	if flags.ping {
+		fmt.Printf("正在测试延迟, 等待 %s...\n", duration.String())
+		ping.Ping(nodes, duration)
 
-	if flags.sort {
-		sort.Sort(nodes)
+		if flags.sort {
+			sort.Sort(nodes)
+		}
 	}
 
 	var tableData []types.TableRow
@@ -111,17 +131,90 @@ func main() {
 	}
 	table.Output(tableData)
 
+	node := func(nodes types.Nodes) *types.Node {
+		for {
+			fmt.Print("输入线路序号:")
+			var nodeIndex int
+			_, _ = fmt.Scan(&nodeIndex)
+			if nodeIndex < 0 || nodeIndex >= len(nodes) {
+				fmt.Println("没有此线路")
+			} else {
+				fmt.Printf("[%s] Ping: %dms\n", nodes[nodeIndex].Name, nodes[nodeIndex].Ping)
+				return nodes[nodeIndex]
+			}
+		}
+	}(nodes)
+
+	var outboundSetting = types.OutboundSetting{VNext: []types.VNextConfig{
+		{
+			Address: node.Addr,
+			Port:    mustConvertStringToInt(node.Port),
+			Users: []struct {
+				ID string `json:"id"`
+			}{{ID: node.UID}},
+		},
+	}}
+
+	if setting, err := json.Marshal(outboundSetting); err != nil {
+		panic(err) // fatal
+	} else {
+		var rawSetting json.RawMessage = setting
+		cfg.V2rayConfig.OutboundConfigs = []types.OutboundConfig{
+			{
+				Protocol: "vmess",
+				Settings: &rawSetting,
+			},
+		}
+	}
+
+	select {
+	case <-time.After(time.Second):
+		fmt.Println("无法获取路由, 将使用内置路由")
+		cfg.V2rayConfig.RouterConfig = parseRule(template.RuleTemplate)
+	case rule := <-ruleCh:
+		fmt.Println("已获取路由")
+		cfg.V2rayConfig.RouterConfig = rule
+	}
+
+	if data, err := json.Marshal(cfg); err != nil {
+		panic(err) // fatal
+	} else {
+		if err = WriteFile(v2subConfig, data); err != nil {
+			fmt.Printf("写入 v2sub 配置文件错误: %v\n", err)
+			return
+		}
+	}
+
+	if v2rayCfgData, err := json.Marshal(&cfg.V2rayConfig); err != nil {
+		panic(err) // fatal
+	} else {
+		if err = WriteFile(v2rayConfig, v2rayCfgData); err != nil {
+			fmt.Printf("写入 v2ray 配置文件错误: %v\n", err)
+			return
+		}
+		fmt.Println("重启 v2ray 服务...")
+		if err = exec.Command("systemctl", "restart", "v2ray.service").Run(); err != nil {
+			fmt.Printf("重启失败: %v\n", err)
+			return
+		}
+	}
+
+	fmt.Println("All done.")
 }
 
 func ReadConfig(name string) (*types.Config, error) {
+	if flags.reload {
+		return template.ConfigTemplate, nil
+	}
+
 	data, err := ioutil.ReadFile(name)
 	if err != nil {
 		return nil, err
 	}
 
 	cfg := &types.Config{}
-	err = json.Unmarshal(data, cfg)
-	if err != nil {
+	if err = json.Unmarshal(data, cfg); err != nil {
+		fmt.Printf("配置文件损坏: %v\n", err)
 		return nil, err
 	}
 	return cfg, nil
@@ -130,25 +223,82 @@ func ReadConfig(name string) (*types.Config, error) {
 func GetSub(url string, ch chan<- []string) {
 	defer close(ch)
 
-	data, err := http.Get(url)
+	// 拿不到订阅信息程序无法进行
+	body, err := httpGet(url)
 	if err != nil {
-		fmt.Printf("GetSub error: %v\n", err)
-		return
-	}
-
-	body, err := ioutil.ReadAll(data.Body)
-	if err != nil {
-		fmt.Printf("GetSub error: %v\n", err)
-		return
-	} else {
-		_ = data.Body.Close()
+		fmt.Printf("httpGet error: %v\n", err)
+		os.Exit(0)
 	}
 
 	res, err := base64.StdEncoding.DecodeString(string(body))
 	if err != nil {
 		fmt.Printf("GetSub error: %v\n", err)
-		return
+		os.Exit(0)
 	}
 
 	ch <- strings.Split(string(res[:len(res)-1]), "\n") // 多一个换行符
+}
+
+func GetRule(url string, ch chan<- *types.RouterConfig) {
+	defer close(ch)
+
+	// 拿不到路由信息程序仍可进行
+	body, err := httpGet(url)
+	if err != nil {
+		fmt.Printf("httpGet error: %v\n", err)
+		return
+	}
+
+	var res = parseRule(body)
+	if res == nil {
+		return
+	}
+
+	ch <- res
+}
+
+func httpGet(url string) ([]byte, error) {
+	data, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() {
+		_ = data.Body.Close()
+	}()
+	return ioutil.ReadAll(data.Body)
+}
+
+func WriteFile(name string, data []byte) error {
+	file, err := os.Create(name)
+	if err != nil {
+		return err
+	}
+
+	_, err = file.Write(data)
+	if err != nil {
+		return err
+	}
+
+	return file.Close()
+}
+
+func parseRule(body []byte) *types.RouterConfig {
+	body = body[strings.Index(string(body), ":")+1 : strings.LastIndex(string(body), ",")] // ASCII
+
+	var res = &types.RouterConfig{}
+	if err := json.Unmarshal(body, res); err != nil {
+		fmt.Printf("GetRule error: %v\n", err)
+		return nil
+	}
+
+	return res
+}
+
+func mustConvertStringToInt(s string) int {
+	res, err := strconv.Atoi(s)
+	if err != nil {
+		panic(err)
+	}
+	return res
 }

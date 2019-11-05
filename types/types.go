@@ -1,10 +1,37 @@
 package types
 
-import "v2ray.com/core/infra/conf"
+import (
+	"encoding/json"
+)
 
 type Config struct {
-	SubUrl      string      `json:"subUrl"`
-	V2rayConfig conf.Config `json:"v2rayConfig"`
+	SubUrl      string `json:"subUrl"`
+	Nodes       Nodes  `json:"nodes"`
+	V2rayConfig V2ray  `json:"v2rayConfig"`
+}
+
+type V2ray struct {
+	RouterConfig    *RouterConfig    `json:"routing"`
+	OutboundConfigs []OutboundConfig `json:"outbounds"`
+	OutboundConfig  OutboundConfig   `json:"outbound"`
+	InboundConfigs  []InboundConfig  `json:"inbounds"`
+}
+
+type RouterConfig struct {
+	RuleList       []json.RawMessage `json:"rules"`
+	DomainStrategy string            `json:"domainStrategy"`
+}
+
+type OutboundConfig struct {
+	Protocol string           `json:"protocol"`
+	Settings *json.RawMessage `json:"settings"`
+	Tag      string           `json:"tag"`
+}
+
+type InboundConfig struct {
+	Protocol string `json:"protocol"`
+	Port     uint32 `json:"port"`
+	ListenOn string `json:"listen"`
 }
 
 type OutboundSetting struct {
@@ -13,7 +40,7 @@ type OutboundSetting struct {
 
 type VNextConfig struct {
 	Address string `json:"address"`
-	Port    string `json:"port"`
+	Port    int    `json:"port"`
 	Users   []struct {
 		ID string `json:"id"`
 	} `json:"users"`
