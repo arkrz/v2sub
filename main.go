@@ -36,6 +36,7 @@ var (
 		version     bool
 		ping        bool
 		reload      bool
+		quick       bool
 		url         string
 		v2rayConfig string
 	}{}
@@ -50,6 +51,7 @@ func main() {
 	flag.BoolVar(&flags.sort, "sort", false, "是否按延迟排序")
 	flag.BoolVar(&flags.rule, "rule", true, "是否刷新规则")
 	flag.BoolVar(&flags.reload, "reload", false, "是否刷新配置")
+	flag.BoolVar(&flags.quick, "q", false, "是否快速切换")
 	flag.StringVar(&flags.v2rayConfig, "config", v2rayConfig, "v2ray 配置文件")
 	flag.BoolVar(&flags.version, "version", false, "显示版本")
 
@@ -58,6 +60,10 @@ func main() {
 	if flags.version {
 		fmt.Printf("v2sub v%s\n", version)
 		return
+	}
+
+	if flags.quick {
+		flags.ping, flags.rule = false, false
 	}
 
 	cfg := ReadConfig(v2subConfig)
@@ -221,7 +227,7 @@ func ReadConfig(name string) *types.Config {
 
 	data, err := ioutil.ReadFile(name)
 	if err != nil {
-		fmt.Printf("无法获取配置信息, 将创建 %s\n", v2subConfig)
+		fmt.Printf("首次运行 v2sub, 将创建 %s\n", v2subConfig)
 		return template.ConfigTemplate
 	}
 
