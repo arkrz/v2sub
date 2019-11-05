@@ -13,7 +13,6 @@ type Config struct {
 type V2ray struct {
 	RouterConfig    *RouterConfig    `json:"routing"`
 	OutboundConfigs []OutboundConfig `json:"outbounds"`
-	OutboundConfig  OutboundConfig   `json:"outbound"`
 	InboundConfigs  []InboundConfig  `json:"inbounds"`
 }
 
@@ -41,15 +40,10 @@ type OutboundSetting struct {
 type VNextConfig struct {
 	Address string `json:"address"`
 	Port    int    `json:"port"`
+	Tag     string `json:"tag"`
 	Users   []struct {
 		ID string `json:"id"`
 	} `json:"users"`
-}
-
-type RuleConfig struct {
-	OutboundTag string   `json:"outboundTag"` // e.g: proxy direct
-	Domain      []string `json:"domain"`
-	Type        string   `json:"type"` // e.g: field
 }
 
 type Node struct {

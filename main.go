@@ -28,22 +28,30 @@ const (
 	version = "1.0.0"
 )
 
-var flags = struct {
-	sub     bool
-	sort    bool
-	url     string
-	version bool
-	ping    bool
-	reload  bool
-}{}
+var (
+	flags = struct {
+		sub         bool
+		rule        bool
+		sort        bool
+		version     bool
+		ping        bool
+		reload      bool
+		url         string
+		v2rayConfig string
+	}{}
+
+	ruleHandler func() <-chan *types.RouterConfig
+)
 
 func main() {
-	flag.BoolVar(&flags.sub, "sub", false, "是否刷新订阅, 默认[否]")
+	flag.BoolVar(&flags.sub, "sub", false, "是否刷新订阅")
 	flag.StringVar(&flags.url, "url", "", "订阅地址")
-	flag.BoolVar(&flags.sort, "sort", false, "是否按延迟排序, 默认[否]")
+	flag.BoolVar(&flags.ping, "ping", true, "是否对所有节点测试延迟")
+	flag.BoolVar(&flags.sort, "sort", false, "是否按延迟排序")
+	flag.BoolVar(&flags.rule, "rule", true, "是否刷新规则")
+	flag.BoolVar(&flags.reload, "reload", false, "是否刷新配置")
+	flag.StringVar(&flags.v2rayConfig, "config", v2rayConfig, "v2ray 配置文件")
 	flag.BoolVar(&flags.version, "version", false, "显示版本")
-	flag.BoolVar(&flags.ping, "ping", true, "是否对所有节点测试延迟, 默认[是]")
-	flag.BoolVar(&flags.reload, "reload", false, "是否刷新配置, 默认[否]")
 
 	flag.Parse()
 
@@ -52,19 +60,20 @@ func main() {
 		return
 	}
 
-	cfg, err := ReadConfig(v2subConfig)
-	if err != nil {
-		fmt.Printf("无法获取配置信息, 将创建 %s\n", v2subConfig)
-		cfg = template.ConfigTemplate
+	cfg := ReadConfig(v2subConfig)
+
+	if flags.rule || flags.reload {
+		fmt.Println("获取规则...")
+		ruleCh := make(chan *types.RouterConfig, 1)
+		ruleHandler = func() <-chan *types.RouterConfig {
+			return ruleCh
+		}
+		go GetRule(ruleUrl, ruleCh)
 	}
 
-	fmt.Println("获取路由...")
-	ruleCh := make(chan *types.RouterConfig, 1)
-	go GetRule(ruleUrl, ruleCh)
-
 	var nodes = func() types.Nodes {
-		if !flags.sub && flags.url == "" && len(cfg.Nodes) != 0 {
-			fmt.Println("使用缓存的订阅信息, 如需刷新请指定 -sub")
+		if !flags.sub && flags.url == "" && len(cfg.Nodes) != 0 && !flags.reload {
+			fmt.Println("使用缓存的订阅信息, 如需刷新请指定 -reload")
 			return cfg.Nodes
 		}
 
@@ -133,11 +142,11 @@ func main() {
 
 	node := func(nodes types.Nodes) *types.Node {
 		for {
-			fmt.Print("输入线路序号:")
+			fmt.Print("输入节点序号:")
 			var nodeIndex int
 			_, _ = fmt.Scan(&nodeIndex)
 			if nodeIndex < 0 || nodeIndex >= len(nodes) {
-				fmt.Println("没有此线路")
+				fmt.Println("没有此节点")
 			} else {
 				fmt.Printf("[%s] Ping: %dms\n", nodes[nodeIndex].Name, nodes[nodeIndex].Ping)
 				return nodes[nodeIndex]
@@ -159,21 +168,24 @@ func main() {
 		panic(err) // fatal
 	} else {
 		var rawSetting json.RawMessage = setting
-		cfg.V2rayConfig.OutboundConfigs = []types.OutboundConfig{
+		cfg.V2rayConfig.OutboundConfigs = append([]types.OutboundConfig{
 			{
 				Protocol: "vmess",
 				Settings: &rawSetting,
+				Tag:      "proxy", // 默认首个规则, 可以删掉
 			},
-		}
+		}, template.DefaultOutboundTemplate...)
 	}
 
-	select {
-	case <-time.After(time.Second):
-		fmt.Println("无法获取路由, 将使用内置路由")
-		cfg.V2rayConfig.RouterConfig = parseRule(template.RuleTemplate)
-	case rule := <-ruleCh:
-		fmt.Println("已获取路由")
-		cfg.V2rayConfig.RouterConfig = rule
+	if flags.rule || flags.reload {
+		select {
+		case <-time.After(time.Second):
+			fmt.Println("无法获取规则, 将使用内置规则")
+			cfg.V2rayConfig.RouterConfig = parseRule(template.RuleTemplate)
+		case rule := <-ruleHandler():
+			fmt.Printf("已获取规则: %s\n", ruleUrl)
+			cfg.V2rayConfig.RouterConfig = rule
+		}
 	}
 
 	if data, err := json.Marshal(cfg); err != nil {
@@ -188,7 +200,7 @@ func main() {
 	if v2rayCfgData, err := json.Marshal(&cfg.V2rayConfig); err != nil {
 		panic(err) // fatal
 	} else {
-		if err = WriteFile(v2rayConfig, v2rayCfgData); err != nil {
+		if err = WriteFile(flags.v2rayConfig, v2rayCfgData); err != nil {
 			fmt.Printf("写入 v2ray 配置文件错误: %v\n", err)
 			return
 		}
@@ -202,22 +214,23 @@ func main() {
 	fmt.Println("All done.")
 }
 
-func ReadConfig(name string) (*types.Config, error) {
+func ReadConfig(name string) *types.Config {
 	if flags.reload {
-		return template.ConfigTemplate, nil
+		return template.ConfigTemplate
 	}
 
 	data, err := ioutil.ReadFile(name)
 	if err != nil {
-		return nil, err
+		fmt.Printf("无法获取配置信息, 将创建 %s\n", v2subConfig)
+		return template.ConfigTemplate
 	}
 
 	cfg := &types.Config{}
 	if err = json.Unmarshal(data, cfg); err != nil {
 		fmt.Printf("配置文件损坏: %v\n", err)
-		return nil, err
+		return template.ConfigTemplate
 	}
-	return cfg, nil
+	return cfg
 }
 
 func GetSub(url string, ch chan<- []string) {
@@ -242,10 +255,10 @@ func GetSub(url string, ch chan<- []string) {
 func GetRule(url string, ch chan<- *types.RouterConfig) {
 	defer close(ch)
 
-	// 拿不到路由信息程序仍可进行
+	// 拿不到规则信息程序仍可进行
 	body, err := httpGet(url)
 	if err != nil {
-		fmt.Printf("httpGet error: %v\n", err)
+		//fmt.Printf("httpGet error: %v\n", err)
 		return
 	}
 
@@ -288,7 +301,7 @@ func parseRule(body []byte) *types.RouterConfig {
 
 	var res = &types.RouterConfig{}
 	if err := json.Unmarshal(body, res); err != nil {
-		fmt.Printf("GetRule error: %v\n", err)
+		fmt.Printf("parseRule error: %v\n", err)
 		return nil
 	}
 

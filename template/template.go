@@ -15,11 +15,6 @@ var ConfigTemplate = &types.Config{
 			DomainStrategy: domainStrategy,
 		}, // https://raw.githubusercontent.com/PaPerseller/chn-iplist/master/v2ray-config_rule.txt
 		OutboundConfigs: []types.OutboundConfig{},
-		OutboundConfig: types.OutboundConfig{
-			Protocol: "freedom",
-			Settings: nil,
-			Tag:      "direct",
-		},
 		InboundConfigs: []types.InboundConfig{
 			{
 				Protocol: "socks",
@@ -37,6 +32,17 @@ var ConfigTemplate = &types.Config{
 				ListenOn: "127.0.0.1",
 			},
 		},
+	},
+}
+
+var DefaultOutboundTemplate = []types.OutboundConfig{
+	{
+		Protocol: "freedom",
+		Tag:      "direct",
+	},
+	{
+		Protocol: "blackhole",
+		Tag:      "block",
 	},
 }
 
