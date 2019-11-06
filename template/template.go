@@ -46,7 +46,7 @@ var DefaultOutboundTemplate = []types.OutboundConfig{
 	},
 }
 
-// 2019.11.05
+// 2019.11
 var RuleTemplate = []byte(`  "routing" : {
     "domainStrategy" : "IPOnDemand",
     "rules" : [

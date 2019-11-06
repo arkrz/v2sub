@@ -26,9 +26,9 @@ sudo ./v2sub
 快速切换节点：
 
 ```shell script
-sudo ./v2sub -ping=false -rule=false
-#or
 sudo ./v2sub -q
+# or
+sudo ./v2sub -ping=false -rule=false
 ```
 
 更多帮助：
