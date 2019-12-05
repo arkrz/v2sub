@@ -25,7 +25,7 @@ const (
 	duration    = 5 * time.Second // 建议至少 5s
 	ruleUrl     = "https://raw.githubusercontent.com/PaPerseller/chn-iplist/master/v2ray-config_rule.txt"
 
-	version = "1.0.1"
+	version = "1.0.2"
 )
 
 var (
@@ -35,7 +35,6 @@ var (
 		sort        bool
 		version     bool
 		ping        bool
-		reload      bool
 		quick       bool
 		url         string
 		v2rayConfig string
@@ -50,7 +49,6 @@ func main() {
 	flag.BoolVar(&flags.ping, "ping", true, "是否对所有节点测试延迟")
 	flag.BoolVar(&flags.sort, "sort", false, "是否按延迟排序")
 	flag.BoolVar(&flags.rule, "rule", true, "是否刷新规则")
-	flag.BoolVar(&flags.reload, "reload", false, "是否刷新配置")
 	flag.BoolVar(&flags.quick, "q", false, "是否快速切换")
 	flag.StringVar(&flags.v2rayConfig, "config", v2rayConfig, "v2ray 配置文件")
 	flag.BoolVar(&flags.version, "version", false, "显示版本")
@@ -68,7 +66,7 @@ func main() {
 
 	cfg := ReadConfig(v2subConfig)
 
-	if flags.rule || flags.reload {
+	if flags.rule {
 		fmt.Println("获取规则...")
 		ruleCh := make(chan *types.RouterConfig, 1)
 		ruleHandler = func() <-chan *types.RouterConfig {
@@ -78,8 +76,8 @@ func main() {
 	}
 
 	var nodes = func() types.Nodes {
-		if !flags.sub && flags.url == "" && len(cfg.Nodes) != 0 && !flags.reload {
-			fmt.Println("使用缓存的订阅信息, 如需刷新请指定 -reload")
+		if !flags.sub && flags.url == "" && len(cfg.Nodes) != 0 {
+			fmt.Println("使用缓存的订阅信息, 如需刷新请指定 -sub")
 			return cfg.Nodes
 		}
 
@@ -183,7 +181,7 @@ func main() {
 		}, template.DefaultOutboundTemplate...)
 	}
 
-	if flags.rule || flags.reload {
+	if flags.rule {
 		select {
 		case <-time.After(time.Second):
 			fmt.Println("无法获取规则, 将使用内置规则")
@@ -221,10 +219,6 @@ func main() {
 }
 
 func ReadConfig(name string) *types.Config {
-	if flags.reload {
-		return template.ConfigTemplate
-	}
-
 	data, err := ioutil.ReadFile(name)
 	if err != nil {
 		fmt.Printf("首次运行 v2sub, 将创建 %s\n", v2subConfig)
