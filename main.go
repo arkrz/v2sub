@@ -36,6 +36,7 @@ var (
 		version     bool
 		ping        bool
 		quick       bool
+		global      bool
 		url         string
 		v2rayConfig string
 	}{}
@@ -48,6 +49,7 @@ func main() {
 	flag.StringVar(&flags.url, "url", "", "订阅地址")
 	flag.BoolVar(&flags.ping, "ping", true, "是否对所有节点测试延迟")
 	flag.BoolVar(&flags.sort, "sort", false, "是否按延迟排序")
+	flag.BoolVar(&flags.global, "global", false, "是否全局代理")
 	flag.BoolVar(&flags.rule, "rule", true, "是否刷新规则")
 	flag.BoolVar(&flags.quick, "q", false, "是否快速切换")
 	flag.StringVar(&flags.v2rayConfig, "config", v2rayConfig, "v2ray 配置文件")
@@ -66,7 +68,7 @@ func main() {
 
 	cfg := ReadConfig(v2subConfig)
 
-	if flags.rule {
+	if !flags.global && flags.rule {
 		fmt.Println("获取规则...")
 		ruleCh := make(chan *types.RouterConfig, 1)
 		ruleHandler = func() <-chan *types.RouterConfig {
@@ -181,14 +183,23 @@ func main() {
 		}, template.DefaultOutboundTemplate...)
 	}
 
-	if flags.rule {
-		select {
-		case <-time.After(time.Second):
-			fmt.Println("无法获取规则, 将使用内置规则")
-			cfg.V2rayConfig.RouterConfig = parseRule(template.RuleTemplate)
-		case rule := <-ruleHandler():
-			fmt.Printf("已获取规则: %s\n", ruleUrl)
-			cfg.V2rayConfig.RouterConfig = rule
+	if flags.global {
+		cfg.V2rayConfig.RouterConfig = nil
+	} else {
+		if flags.rule {
+			select {
+			case <-time.After(time.Second):
+				fmt.Println("无法获取规则, 将使用内置规则")
+				cfg.V2rayConfig.RouterConfig = parseRule(template.RuleTemplate)
+			case rule := <-ruleHandler():
+				fmt.Printf("已获取规则: %s\n", ruleUrl)
+				cfg.V2rayConfig.RouterConfig = rule
+			}
+		} else {
+			if cfg.V2rayConfig.RouterConfig == nil || len(cfg.V2rayConfig.RouterConfig.RuleList) == 0 {
+				//fmt.Println("使用内置规则")
+				cfg.V2rayConfig.RouterConfig = parseRule(template.RuleTemplate)
+			}
 		}
 	}
 
