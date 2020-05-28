@@ -25,7 +25,7 @@ const (
 	duration    = 5 * time.Second // 建议至少 5s
 	ruleUrl     = "https://raw.githubusercontent.com/PaPerseller/chn-iplist/master/v2ray-config_rule.txt"
 
-	version = "1.0.2"
+	version = "1.0.3"
 )
 
 var (
@@ -68,6 +68,8 @@ func main() {
 
 	cfg := ReadConfig(v2subConfig)
 
+	start := time.Now()
+
 	if !flags.global && flags.rule {
 		fmt.Println("获取规则...")
 		ruleCh := make(chan *types.RouterConfig, 1)
@@ -95,7 +97,6 @@ func main() {
 		}
 
 		fmt.Println("开始解析订阅信息...")
-		subStart := time.Now()
 
 		var nodes types.Nodes
 		subCh := make(chan []string, 1)
@@ -121,7 +122,7 @@ func main() {
 			}
 		}
 
-		fmt.Printf("订阅信息解析完毕, 用时 %ds\n", time.Now().Second()-subStart.Second())
+		fmt.Printf("订阅信息解析完毕, 用时 %ds\n", time.Now().Second()-start.Second())
 
 		cfg.Nodes = nodes
 		return nodes
@@ -189,11 +190,16 @@ func main() {
 		if flags.rule {
 			select {
 			case <-time.After(time.Second):
-				fmt.Println("无法获取规则, 将使用内置规则")
+				fmt.Printf("%ds 后仍未获取到规则信息, 将使用内置规则\n", time.Now().Second()-start.Second())
 				cfg.V2rayConfig.RouterConfig = parseRule(template.RuleTemplate)
 			case rule := <-ruleHandler():
-				fmt.Printf("已获取规则: %s\n", ruleUrl)
-				cfg.V2rayConfig.RouterConfig = rule
+				if rule == nil {
+					fmt.Println("无法获取规则, 将使用内置规则")
+					cfg.V2rayConfig.RouterConfig = parseRule(template.RuleTemplate)
+				} else {
+					fmt.Printf("已获取规则: %s\n", ruleUrl)
+					cfg.V2rayConfig.RouterConfig = rule
+				}
 			}
 		} else {
 			if cfg.V2rayConfig.RouterConfig == nil || len(cfg.V2rayConfig.RouterConfig.RuleList) == 0 {
@@ -250,13 +256,13 @@ func GetSub(url string, ch chan<- []string) {
 	// 拿不到订阅信息程序无法进行
 	body, err := httpGet(url)
 	if err != nil {
-		fmt.Printf("httpGet error: %v\n", err)
+		fmt.Printf("获取订阅信息失败: %v\n", err)
 		os.Exit(0)
 	}
 
 	res, err := base64.StdEncoding.DecodeString(string(body))
 	if err != nil {
-		fmt.Printf("GetSub error: %v\n", err)
+		fmt.Printf("订阅信息解析失败: %v\n", err)
 		os.Exit(0)
 	}
 
@@ -269,14 +275,14 @@ func GetRule(url string, ch chan<- *types.RouterConfig) {
 	// 拿不到规则信息程序仍可进行
 	body, err := httpGet(url)
 	if err != nil {
-		//fmt.Printf("httpGet error: %v\n", err)
+		//fmt.Printf("获取规则信息失败: %v\n", err)
 		return
 	}
 
 	var res = parseRule(body)
-	if res == nil {
-		return
-	}
+	//if res == nil {
+	//	return
+	//}
 
 	ch <- res
 }
