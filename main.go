@@ -14,7 +14,6 @@ import (
 	"os"
 	"os/exec"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -23,15 +22,15 @@ const (
 	v2subConfig = "/etc/v2sub.json"
 	v2rayConfig = "/etc/v2ray.json"
 	duration    = 5 * time.Second // 建议至少 5s
-	ruleUrl     = "https://raw.githubusercontent.com/PaPerseller/chn-iplist/master/v2ray-config_rule.txt"
+	//ruleUrl     = "https://raw.githubusercontent.com/PaPerseller/chn-iplist/master/v2ray-config_rule.txt"
 
-	version = "1.0.3"
+	version = "1.1.0"
 )
 
 var (
 	flags = struct {
-		sub         bool
-		rule        bool
+		sub bool
+		//rule        bool
 		sort        bool
 		version     bool
 		ping        bool
@@ -41,7 +40,7 @@ var (
 		v2rayConfig string
 	}{}
 
-	ruleHandler func() <-chan *types.RouterConfig
+	//ruleHandler func() <-chan *types.RouterConfig
 )
 
 func main() {
@@ -50,7 +49,7 @@ func main() {
 	flag.BoolVar(&flags.ping, "ping", true, "是否对所有节点测试延迟")
 	flag.BoolVar(&flags.sort, "sort", false, "是否按延迟排序")
 	flag.BoolVar(&flags.global, "global", false, "是否全局代理")
-	flag.BoolVar(&flags.rule, "rule", true, "是否刷新规则")
+	//flag.BoolVar(&flags.rule, "rule", true, "是否刷新规则")
 	flag.BoolVar(&flags.quick, "q", false, "是否快速切换")
 	flag.StringVar(&flags.v2rayConfig, "config", v2rayConfig, "v2ray 配置文件")
 	flag.BoolVar(&flags.version, "version", false, "显示版本")
@@ -63,21 +62,22 @@ func main() {
 	}
 
 	if flags.quick {
-		flags.ping, flags.rule = false, false
+		//flags.ping, flags.rule = false, false
+		flags.ping = false
 	}
 
 	cfg := ReadConfig(v2subConfig)
 
 	start := time.Now()
 
-	if !flags.global && flags.rule {
-		fmt.Println("获取规则...")
-		ruleCh := make(chan *types.RouterConfig, 1)
-		ruleHandler = func() <-chan *types.RouterConfig {
-			return ruleCh
-		}
-		go GetRule(ruleUrl, ruleCh)
-	}
+	//if !flags.global && flags.rule {
+	//	fmt.Println("获取规则...")
+	//	ruleCh := make(chan *types.RouterConfig, 1)
+	//	ruleHandler = func() <-chan *types.RouterConfig {
+	//		return ruleCh
+	//	}
+	//	go GetRule(ruleUrl, ruleCh)
+	//}
 
 	var nodes = func() types.Nodes {
 		if !flags.sub && flags.url == "" && len(cfg.Nodes) != 0 {
@@ -115,6 +115,7 @@ func main() {
 					var node = &types.Node{}
 					if err = json.Unmarshal(nodeData, node); err != nil {
 						fmt.Printf("订阅信息格式错误: %v, 建议咨询服务提供商\n", err)
+						fmt.Println(string(nodeData))
 						os.Exit(0)
 					}
 					nodes = append(nodes, node)
@@ -164,7 +165,7 @@ func main() {
 	var outboundSetting = types.OutboundSetting{VNext: []types.VNextConfig{
 		{
 			Address: node.Addr,
-			Port:    mustConvertStringToInt(node.Port),
+			Port:    node.Port,
 			Users: []struct {
 				ID string `json:"id"`
 			}{{ID: node.UID}},
@@ -175,38 +176,49 @@ func main() {
 		panic(err) // fatal
 	} else {
 		var rawSetting json.RawMessage = setting
-		cfg.V2rayConfig.OutboundConfigs = append([]types.OutboundConfig{
+		cfg.V2rayConfig.OutboundConfigs = []types.OutboundConfig{
 			{
 				Protocol: "vmess",
 				Settings: &rawSetting,
-				Tag:      "proxy", // 默认首个规则, 可以删掉
+				Tag:      "proxy",
 			},
-		}, template.DefaultOutboundTemplate...)
+			{
+				Protocol: "freedom",
+				Tag:      "direct",
+			},
+			{
+				Protocol: "blackhole",
+				Tag:      "block",
+			},
+		}
 	}
 
 	if flags.global {
+		cfg.V2rayConfig.DNSConfigs = nil
 		cfg.V2rayConfig.RouterConfig = nil
 	} else {
-		if flags.rule {
-			select {
-			case <-time.After(time.Second):
-				fmt.Printf("%ds 后仍未获取到规则信息, 将使用内置规则\n", time.Now().Second()-start.Second())
-				cfg.V2rayConfig.RouterConfig = parseRule(template.RuleTemplate)
-			case rule := <-ruleHandler():
-				if rule == nil {
-					fmt.Println("无法获取规则, 将使用内置规则")
-					cfg.V2rayConfig.RouterConfig = parseRule(template.RuleTemplate)
-				} else {
-					fmt.Printf("已获取规则: %s\n", ruleUrl)
-					cfg.V2rayConfig.RouterConfig = rule
-				}
-			}
-		} else {
-			if cfg.V2rayConfig.RouterConfig == nil || len(cfg.V2rayConfig.RouterConfig.RuleList) == 0 {
-				//fmt.Println("使用内置规则")
-				cfg.V2rayConfig.RouterConfig = parseRule(template.RuleTemplate)
-			}
-		}
+		cfg.V2rayConfig.DNSConfigs = template.DefaultDNSConfigs
+		cfg.V2rayConfig.RouterConfig = template.DefaultRouterConfigs
+		//if flags.rule {
+		//	select {
+		//	case <-time.After(time.Second):
+		//		fmt.Printf("%ds 后仍未获取到规则信息, 将使用内置规则\n", time.Now().Second()-start.Second())
+		//		cfg.V2rayConfig.RouterConfig = parseRule(template.RuleTemplate)
+		//	case rule := <-ruleHandler():
+		//		if rule == nil {
+		//			fmt.Println("无法获取规则, 将使用内置规则")
+		//			cfg.V2rayConfig.RouterConfig = parseRule(template.RuleTemplate)
+		//		} else {
+		//			fmt.Printf("已获取规则: %s\n", ruleUrl)
+		//			cfg.V2rayConfig.RouterConfig = rule
+		//		}
+		//	}
+		//} else {
+		//	if cfg.V2rayConfig.RouterConfig == nil || len(cfg.V2rayConfig.RouterConfig.RuleList) == 0 {
+		//		//fmt.Println("使用内置规则")
+		//		cfg.V2rayConfig.RouterConfig = parseRule(template.RuleTemplate)
+		//	}
+		//}
 	}
 
 	if data, err := json.Marshal(cfg); err != nil {
@@ -269,23 +281,23 @@ func GetSub(url string, ch chan<- []string) {
 	ch <- strings.Split(string(res[:len(res)-1]), "\n") // 多一个换行符
 }
 
-func GetRule(url string, ch chan<- *types.RouterConfig) {
-	defer close(ch)
-
-	// 拿不到规则信息程序仍可进行
-	body, err := httpGet(url)
-	if err != nil {
-		//fmt.Printf("获取规则信息失败: %v\n", err)
-		return
-	}
-
-	var res = parseRule(body)
-	//if res == nil {
-	//	return
-	//}
-
-	ch <- res
-}
+//func GetRule(url string, ch chan<- *types.RouterConfig) {
+//	defer close(ch)
+//
+//	// 拿不到规则信息程序仍可进行
+//	body, err := httpGet(url)
+//	if err != nil {
+//		//fmt.Printf("获取规则信息失败: %v\n", err)
+//		return
+//	}
+//
+//	var res = parseRule(body)
+//	//if res == nil {
+//	//	return
+//	//}
+//
+//	ch <- res
+//}
 
 func httpGet(url string) ([]byte, error) {
 	data, err := http.Get(url)
@@ -313,22 +325,14 @@ func WriteFile(name string, data []byte) error {
 	return file.Close()
 }
 
-func parseRule(body []byte) *types.RouterConfig {
-	body = body[strings.Index(string(body), ":")+1 : strings.LastIndex(string(body), ",")] // ASCII
-
-	var res = &types.RouterConfig{}
-	if err := json.Unmarshal(body, res); err != nil {
-		fmt.Printf("parseRule error: %v\n", err)
-		return nil
-	}
-
-	return res
-}
-
-func mustConvertStringToInt(s string) int {
-	res, err := strconv.Atoi(s)
-	if err != nil {
-		panic(err)
-	}
-	return res
-}
+//func parseRule(body []byte) *types.RouterConfig {
+//	body = body[strings.Index(string(body), ":")+1 : strings.LastIndex(string(body), ",")] // ASCII
+//
+//	var res = &types.RouterConfig{}
+//	if err := json.Unmarshal(body, res); err != nil {
+//		fmt.Printf("parseRule error: %v\n", err)
+//		return nil
+//	}
+//
+//	return res
+//}

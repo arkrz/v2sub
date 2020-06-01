@@ -11,9 +11,14 @@ type Config struct {
 }
 
 type V2ray struct {
+	DNSConfigs      *DNSConfig       `json:"dns"`
 	RouterConfig    *RouterConfig    `json:"routing"`
 	OutboundConfigs []OutboundConfig `json:"outbounds"`
 	InboundConfigs  []InboundConfig  `json:"inbounds"`
+}
+
+type DNSConfig struct {
+	Servers []json.RawMessage `json:"servers"`
 }
 
 type RouterConfig struct {
@@ -49,7 +54,7 @@ type VNextConfig struct {
 type Node struct {
 	Name string `json:"ps"`
 	Addr string `json:"add"`
-	Port string `json:"port"`
+	Port int    `json:"port"`
 	UID  string `json:"id"`
 	AID  string `json:"aid"`
 	Net  string `json:"net"`
