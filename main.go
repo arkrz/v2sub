@@ -110,15 +110,16 @@ func main() {
 				data[i] = strings.ReplaceAll(data[i], "vmess://", "")
 				if nodeData, err := base64.StdEncoding.DecodeString(data[i]); err != nil {
 					fmt.Printf("订阅信息格式错误: %v, 建议咨询服务提供商\n", err)
-					os.Exit(0)
+					fmt.Println(data[i])
 				} else {
 					var node = &types.Node{}
 					if err = json.Unmarshal(nodeData, node); err != nil {
 						fmt.Printf("订阅信息格式错误: %v, 建议咨询服务提供商\n", err)
 						fmt.Println(string(nodeData))
-						os.Exit(0)
+					} else {
+						nodes = append(nodes, node)
 					}
-					nodes = append(nodes, node)
+
 				}
 			}
 		}
@@ -148,6 +149,8 @@ func main() {
 	}
 	table.Output(tableData)
 
+	var streamSetting types.StreamSetting
+
 	node := func(nodes types.Nodes) *types.Node {
 		for {
 			fmt.Print("输入节点序号:")
@@ -157,6 +160,12 @@ func main() {
 				fmt.Println("没有此节点")
 			} else {
 				fmt.Printf("[%s] Ping: %dms\n", nodes[nodeIndex].Name, nodes[nodeIndex].Ping)
+				if nodes[nodeIndex].Net != "" {
+					streamSetting.Network = nodes[nodeIndex].Net
+				}
+				if nodes[nodeIndex].TLS != "" {
+					streamSetting.Security = nodes[nodeIndex].TLS
+				}
 				return nodes[nodeIndex]
 			}
 		}
@@ -178,9 +187,10 @@ func main() {
 		var rawSetting json.RawMessage = setting
 		cfg.V2rayConfig.OutboundConfigs = []types.OutboundConfig{
 			{
-				Protocol: "vmess",
-				Settings: &rawSetting,
-				Tag:      "proxy",
+				Protocol:       "vmess",
+				Settings:       &rawSetting,
+				Tag:            "proxy",
+				StreamSettings: &streamSetting,
 			},
 			{
 				Protocol: "freedom",

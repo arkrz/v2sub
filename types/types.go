@@ -27,9 +27,10 @@ type RouterConfig struct {
 }
 
 type OutboundConfig struct {
-	Protocol string           `json:"protocol"`
-	Settings *json.RawMessage `json:"settings"`
-	Tag      string           `json:"tag"`
+	Protocol       string           `json:"protocol"`
+	Settings       *json.RawMessage `json:"settings"`
+	Tag            string           `json:"tag"`
+	StreamSettings *StreamSetting   `json:"streamSettings"`
 }
 
 type InboundConfig struct {
@@ -49,6 +50,11 @@ type VNextConfig struct {
 	Users   []struct {
 		ID string `json:"id"`
 	} `json:"users"`
+}
+
+type StreamSetting struct {
+	Network  string `json:"network"`
+	Security string `json:"security"`
 }
 
 type Node struct {
