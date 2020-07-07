@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -9,12 +8,9 @@ import (
 	"github.com/ThomasZN/v2sub/template"
 	"github.com/ThomasZN/v2sub/types"
 	"github.com/modood/table"
-	"io/ioutil"
-	"net/http"
 	"os"
 	"os/exec"
 	"sort"
-	"strings"
 	"time"
 )
 
@@ -29,8 +25,7 @@ const (
 
 var (
 	flags = struct {
-		sub bool
-		//rule        bool
+		sub         bool
 		sort        bool
 		version     bool
 		ping        bool
@@ -39,8 +34,6 @@ var (
 		url         string
 		v2rayConfig string
 	}{}
-
-	//ruleHandler func() <-chan *types.RouterConfig
 )
 
 func main() {
@@ -49,7 +42,6 @@ func main() {
 	flag.BoolVar(&flags.ping, "ping", true, "是否对所有节点测试延迟")
 	flag.BoolVar(&flags.sort, "sort", false, "是否按延迟排序")
 	flag.BoolVar(&flags.global, "global", false, "是否全局代理")
-	//flag.BoolVar(&flags.rule, "rule", true, "是否刷新规则")
 	flag.BoolVar(&flags.quick, "q", false, "是否快速切换")
 	flag.StringVar(&flags.v2rayConfig, "config", v2rayConfig, "v2ray 配置文件")
 	flag.BoolVar(&flags.version, "version", false, "显示版本")
@@ -62,23 +54,22 @@ func main() {
 	}
 
 	if flags.quick {
-		//flags.ping, flags.rule = false, false
 		flags.ping = false
 	}
 
-	cfg := ReadConfig(v2subConfig)
+	//本地配置文件读取
+	if exist := FileExist(v2subConfig); !exist {
+		fmt.Printf("首次运行 v2sub, 将创建 %s\n", v2subConfig)
+	}
+	cfg, err := ReadConfig(v2subConfig)
+	if err != nil {
+		fmt.Printf("配置文件损坏: %v\n", err)
+	}
 
+	//计时
 	start := time.Now()
 
-	//if !flags.global && flags.rule {
-	//	fmt.Println("获取规则...")
-	//	ruleCh := make(chan *types.RouterConfig, 1)
-	//	ruleHandler = func() <-chan *types.RouterConfig {
-	//		return ruleCh
-	//	}
-	//	go GetRule(ruleUrl, ruleCh)
-	//}
-
+	//获取节点
 	var nodes = func() types.Nodes {
 		if !flags.sub && flags.url == "" && len(cfg.Nodes) != 0 {
 			fmt.Println("使用缓存的订阅信息, 如需刷新请指定 -sub")
@@ -101,25 +92,21 @@ func main() {
 		var nodes types.Nodes
 		subCh := make(chan []string, 1)
 		go GetSub(cfg.SubUrl, subCh)
+		defer close(subCh)
 		select {
 		case <-time.After(duration):
 			fmt.Printf("%s 后仍未获取到订阅信息, 请检查订阅地址和网络状况\n", duration.String())
 			os.Exit(0)
 		case data := <-subCh:
-			for i := range data {
-				data[i] = strings.ReplaceAll(data[i], "vmess://", "")
-				if nodeData, err := base64.StdEncoding.DecodeString(data[i]); err != nil {
-					fmt.Printf("订阅信息格式错误: %v, 建议咨询服务提供商\n", err)
+			if data == nil {
+				fmt.Println("base64 解码错误, 请核实订阅编码")
+				os.Exit(0)
+			}
+			nodes, data = ParseNodes(data)
+			if len(data) != 0 {
+				fmt.Println("无法解析下列节点:")
+				for i := range data {
 					fmt.Println(data[i])
-				} else {
-					var node = &types.Node{}
-					if err = json.Unmarshal(nodeData, node); err != nil {
-						fmt.Printf("订阅信息格式错误: %v, 建议咨询服务提供商\n", err)
-						fmt.Println(string(nodeData))
-					} else {
-						nodes = append(nodes, node)
-					}
-
 				}
 			}
 		}
@@ -139,18 +126,24 @@ func main() {
 		}
 	}
 
-	var tableData []types.TableRow
-	for i := range nodes {
-		tableData = append(tableData, types.TableRow{
-			Index: i,
-			Name:  nodes[i].Name,
-			Addr:  nodes[i].Addr,
-			Ping:  nodes[i].Ping})
+	//表格打印
+	{
+		var tableData []types.TableRow
+		for i := range nodes {
+			tableData = append(tableData, types.TableRow{
+				Index: i,
+				Name:  nodes[i].Name,
+				Addr:  nodes[i].Addr,
+				Port:  nodes[i].Port,
+				Ping:  nodes[i].Ping})
+		}
+		table.Output(tableData)
 	}
-	table.Output(tableData)
 
+	//v2ray.streamSettings
 	var streamSetting types.StreamSetting
 
+	//节点选择
 	node := func(nodes types.Nodes) *types.Node {
 		for {
 			fmt.Print("输入节点序号:")
@@ -160,10 +153,8 @@ func main() {
 				fmt.Println("没有此节点")
 			} else {
 				fmt.Printf("[%s] Ping: %dms\n", nodes[nodeIndex].Name, nodes[nodeIndex].Ping)
-				if nodes[nodeIndex].Net != "" {
+				if nodes[nodeIndex].Protocol == vmessProtocol {
 					streamSetting.Network = nodes[nodeIndex].Net
-				}
-				if nodes[nodeIndex].TLS != "" {
 					streamSetting.Security = nodes[nodeIndex].TLS
 				}
 				return nodes[nodeIndex]
@@ -171,36 +162,41 @@ func main() {
 		}
 	}(nodes)
 
-	var outboundSetting = types.OutboundSetting{VNext: []types.VNextConfig{
-		{
-			Address: node.Addr,
-			Port:    node.Port,
-			Users: []struct {
-				ID string `json:"id"`
-			}{{ID: node.UID}},
-		},
-	}}
+	var v2rayOutboundProtocol string
+	var outboundSetting interface{}
+	switch node.Protocol {
+	case vmessProtocol:
+		v2rayOutboundProtocol = vmessProtocol
+		outboundSetting = &types.VnextOutboundSetting{VNext: []types.VNextConfig{
+			{
+				Address: node.Addr,
+				Port:    node.Port,
+				Users: []struct {
+					ID string `json:"id"`
+				}{{ID: node.UID}},
+			},
+		}}
+
+	case trojanProtocol:
+		fmt.Println("暂不支持 trojan")
+		return //TODO
+
+	default:
+		panic("unexpected protocol: " + node.Protocol) // ?
+	}
 
 	if setting, err := json.Marshal(outboundSetting); err != nil {
-		panic(err) // fatal
+		panic(err) // ?
 	} else {
 		var rawSetting json.RawMessage = setting
-		cfg.V2rayConfig.OutboundConfigs = []types.OutboundConfig{
+		cfg.V2rayConfig.OutboundConfigs = append([]types.OutboundConfig{
 			{
-				Protocol:       "vmess",
+				Protocol:       v2rayOutboundProtocol,
 				Settings:       &rawSetting,
 				Tag:            "proxy",
 				StreamSettings: &streamSetting,
 			},
-			{
-				Protocol: "freedom",
-				Tag:      "direct",
-			},
-			{
-				Protocol: "blackhole",
-				Tag:      "block",
-			},
-		}
+		}, template.DefaultOutboundConfigs...)
 	}
 
 	if flags.global {
@@ -209,30 +205,10 @@ func main() {
 	} else {
 		cfg.V2rayConfig.DNSConfigs = template.DefaultDNSConfigs
 		cfg.V2rayConfig.RouterConfig = template.DefaultRouterConfigs
-		//if flags.rule {
-		//	select {
-		//	case <-time.After(time.Second):
-		//		fmt.Printf("%ds 后仍未获取到规则信息, 将使用内置规则\n", time.Now().Second()-start.Second())
-		//		cfg.V2rayConfig.RouterConfig = parseRule(template.RuleTemplate)
-		//	case rule := <-ruleHandler():
-		//		if rule == nil {
-		//			fmt.Println("无法获取规则, 将使用内置规则")
-		//			cfg.V2rayConfig.RouterConfig = parseRule(template.RuleTemplate)
-		//		} else {
-		//			fmt.Printf("已获取规则: %s\n", ruleUrl)
-		//			cfg.V2rayConfig.RouterConfig = rule
-		//		}
-		//	}
-		//} else {
-		//	if cfg.V2rayConfig.RouterConfig == nil || len(cfg.V2rayConfig.RouterConfig.RuleList) == 0 {
-		//		//fmt.Println("使用内置规则")
-		//		cfg.V2rayConfig.RouterConfig = parseRule(template.RuleTemplate)
-		//	}
-		//}
 	}
 
 	if data, err := json.Marshal(cfg); err != nil {
-		panic(err) // fatal
+		panic(err) // ?
 	} else {
 		if err = WriteFile(v2subConfig, data); err != nil {
 			fmt.Printf("写入 v2sub 配置文件错误: %v\n", err)
@@ -241,7 +217,7 @@ func main() {
 	}
 
 	if v2rayCfgData, err := json.Marshal(&cfg.V2rayConfig); err != nil {
-		panic(err) // fatal
+		panic(err) // ?
 	} else {
 		if err = WriteFile(flags.v2rayConfig, v2rayCfgData); err != nil {
 			fmt.Printf("写入 v2ray 配置文件错误: %v\n", err)
@@ -256,93 +232,3 @@ func main() {
 
 	fmt.Println("All done.")
 }
-
-func ReadConfig(name string) *types.Config {
-	data, err := ioutil.ReadFile(name)
-	if err != nil {
-		fmt.Printf("首次运行 v2sub, 将创建 %s\n", v2subConfig)
-		return template.ConfigTemplate
-	}
-
-	cfg := &types.Config{}
-	if err = json.Unmarshal(data, cfg); err != nil {
-		fmt.Printf("配置文件损坏: %v\n", err)
-		return template.ConfigTemplate
-	}
-	return cfg
-}
-
-func GetSub(url string, ch chan<- []string) {
-	defer close(ch)
-
-	// 拿不到订阅信息程序无法进行
-	body, err := httpGet(url)
-	if err != nil {
-		fmt.Printf("获取订阅信息失败: %v\n", err)
-		os.Exit(0)
-	}
-
-	res, err := base64.StdEncoding.DecodeString(string(body))
-	if err != nil {
-		fmt.Printf("订阅信息解析失败: %v\n", err)
-		os.Exit(0)
-	}
-
-	ch <- strings.Split(string(res[:len(res)-1]), "\n") // 多一个换行符
-}
-
-//func GetRule(url string, ch chan<- *types.RouterConfig) {
-//	defer close(ch)
-//
-//	// 拿不到规则信息程序仍可进行
-//	body, err := httpGet(url)
-//	if err != nil {
-//		//fmt.Printf("获取规则信息失败: %v\n", err)
-//		return
-//	}
-//
-//	var res = parseRule(body)
-//	//if res == nil {
-//	//	return
-//	//}
-//
-//	ch <- res
-//}
-
-func httpGet(url string) ([]byte, error) {
-	data, err := http.Get(url)
-	if err != nil {
-		return nil, err
-	}
-
-	defer func() {
-		_ = data.Body.Close()
-	}()
-	return ioutil.ReadAll(data.Body)
-}
-
-func WriteFile(name string, data []byte) error {
-	file, err := os.Create(name)
-	if err != nil {
-		return err
-	}
-
-	_, err = file.Write(data)
-	if err != nil {
-		return err
-	}
-
-	return file.Close()
-}
-
-//func parseRule(body []byte) *types.RouterConfig {
-//	body = body[strings.Index(string(body), ":")+1 : strings.LastIndex(string(body), ",")] // ASCII
-//
-//	var res = &types.RouterConfig{}
-//	if err := json.Unmarshal(body, res); err != nil {
-//		fmt.Printf("parseRule error: %v\n", err)
-//		return nil
-//	}
-//
-//	return res
-//}

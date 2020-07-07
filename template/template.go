@@ -78,7 +78,13 @@ var DefaultRouterConfigs = &types.RouterConfig{
 	DomainStrategy: domainStrategy,
 }
 
-// 2020.5 https://raw.githubusercontent.com/PaPerseller/chn-iplist/master/v2ray-config_rule.txt
-// 更新后此规则几乎完全是黑名单模式，direct ip已全部移除，并且还有json语法错误。
-// 暂时不再使用
-//var RuleTemplate = []byte()
+var DefaultOutboundConfigs = []types.OutboundConfig{
+	{
+		Protocol: "freedom",
+		Tag:      "direct",
+	},
+	{
+		Protocol: "blackhole",
+		Tag:      "block",
+	},
+}
