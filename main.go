@@ -15,9 +15,10 @@ import (
 )
 
 const (
-	v2subConfig = "/etc/v2sub.json"
-	v2rayConfig = "/etc/v2ray.json"
-	duration    = 5 * time.Second // 建议至少 5s
+	v2subConfig  = "/etc/v2sub.json"
+	v2rayConfig  = "/etc/v2ray.json"
+	trojanConfig = "/etc/trojan.json"
+	duration     = 5 * time.Second // 建议至少 5s
 	//ruleUrl     = "https://raw.githubusercontent.com/PaPerseller/chn-iplist/master/v2ray-config_rule.txt"
 
 	version = "1.1.0"
@@ -63,11 +64,8 @@ func main() {
 	}
 	cfg, err := ReadConfig(v2subConfig)
 	if err != nil {
-		fmt.Printf("配置文件损坏: %v\n", err)
+		fmt.Printf("v2sub 配置文件损坏: %v\n", err)
 	}
-
-	//计时
-	start := time.Now()
 
 	//获取节点
 	var nodes = func() types.Nodes {
@@ -111,8 +109,6 @@ func main() {
 			}
 		}
 
-		fmt.Printf("订阅信息解析完毕, 用时 %ds\n", time.Now().Second()-start.Second())
-
 		cfg.Nodes = nodes
 		return nodes
 	}()
@@ -140,9 +136,6 @@ func main() {
 		table.Output(tableData)
 	}
 
-	//v2ray.streamSettings
-	var streamSetting types.StreamSetting
-
 	//节点选择
 	node := func(nodes types.Nodes) *types.Node {
 		for {
@@ -153,10 +146,6 @@ func main() {
 				fmt.Println("没有此节点")
 			} else {
 				fmt.Printf("[%s] Ping: %dms\n", nodes[nodeIndex].Name, nodes[nodeIndex].Ping)
-				if nodes[nodeIndex].Protocol == vmessProtocol {
-					streamSetting.Network = nodes[nodeIndex].Net
-					streamSetting.Security = nodes[nodeIndex].TLS
-				}
 				return nodes[nodeIndex]
 			}
 		}
@@ -164,6 +153,7 @@ func main() {
 
 	var v2rayOutboundProtocol string
 	var outboundSetting interface{}
+	var streamSetting types.StreamSetting //v2ray.streamSettings
 	switch node.Protocol {
 	case vmessProtocol:
 		v2rayOutboundProtocol = vmessProtocol
@@ -176,10 +166,40 @@ func main() {
 				}{{ID: node.UID}},
 			},
 		}}
+		streamSetting.Network = node.Net
+		streamSetting.Security = node.TLS
 
 	case trojanProtocol:
-		fmt.Println("暂不支持 trojan")
-		return //TODO
+		v2rayOutboundProtocol = socksProtocol
+
+		// 启动 trojan
+		trojan := template.TrojanTemplate // 是否需要从本地读取 trojan config?
+		trojan.Password = []string{node.UID}
+		trojan.RemoteAddr = node.Addr
+		trojan.RemotePort = node.Port
+		if trojanRaw, err := json.Marshal(trojan); err != nil {
+			panic(err) // ?
+		} else {
+			if err = WriteFile(trojanConfig, trojanRaw); err != nil {
+				fmt.Printf("写入 trojan 配置文件错误: %v\n", err)
+				return
+			}
+		}
+		fmt.Println("重启 trojan 服务...")
+		if err = exec.Command("systemctl", "restart", "trojan.service").Run(); err != nil {
+			fmt.Printf("重启失败: %v\n", err)
+			return
+		}
+		fmt.Println("trojan 启动完成")
+
+		outboundSetting = &types.SocksOutboundSetting{Servers: []types.SocksServerConfig{
+			{
+				Address: trojan.LocalAddr,
+				Port:    trojan.LocalPort,
+			},
+		}}
+		streamSetting.Network = "tcp"
+		streamSetting.Security = "none"
 
 	default:
 		panic("unexpected protocol: " + node.Protocol) // ?
@@ -200,11 +220,9 @@ func main() {
 	}
 
 	if flags.global {
-		cfg.V2rayConfig.DNSConfigs = nil
-		cfg.V2rayConfig.RouterConfig = nil
+		setGlobalProxy(&cfg.V2rayConfig)
 	} else {
-		cfg.V2rayConfig.DNSConfigs = template.DefaultDNSConfigs
-		cfg.V2rayConfig.RouterConfig = template.DefaultRouterConfigs
+		setRuleProxy(&cfg.V2rayConfig)
 	}
 
 	if data, err := json.Marshal(cfg); err != nil {

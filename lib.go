@@ -16,6 +16,7 @@ import (
 const (
 	vmessProtocol  = "vmess"
 	trojanProtocol = "trojan"
+	socksProtocol  = "socks"
 )
 
 func FileExist(name string) bool {
@@ -170,4 +171,14 @@ func WriteFile(name string, data []byte) error {
 	}
 
 	return file.Close()
+}
+
+func setRuleProxy(config *types.V2ray) {
+	config.DNSConfigs = template.DefaultDNSConfigs
+	config.RouterConfig = template.DefaultRouterConfigs
+}
+
+func setGlobalProxy(config *types.V2ray) {
+	config.DNSConfigs = nil
+	config.RouterConfig = nil
 }

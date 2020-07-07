@@ -5,10 +5,9 @@ import (
 )
 
 type Config struct {
-	SubUrl       string `json:"subUrl"`
-	Nodes        Nodes  `json:"nodes"`
-	V2rayConfig  V2ray  `json:"v2rayConfig"`
-	TrojanConfig Trojan `json:"trojanConfig"`
+	SubUrl      string `json:"subUrl"`
+	Nodes       Nodes  `json:"nodes"`
+	V2rayConfig V2ray  `json:"v2rayConfig"`
 }
 
 type V2ray struct {
@@ -53,11 +52,11 @@ type VNextConfig struct {
 	} `json:"users"`
 }
 
-type Socks5OutboundSetting struct {
-	Servers []Socks5ServerConfig `json:"servers"`
+type SocksOutboundSetting struct {
+	Servers []SocksServerConfig `json:"servers"`
 }
 
-type Socks5ServerConfig struct {
+type SocksServerConfig struct {
 	Address string `json:"address"`
 	Port    int    `json:"port"`
 }
