@@ -17,6 +17,7 @@ const (
 	vmessProtocol  = "vmess"
 	trojanProtocol = "trojan"
 	socksProtocol  = "socks"
+	ssProtocol     = "shadowsocks"
 )
 
 func FileExist(name string) bool {
@@ -76,6 +77,7 @@ func httpGet(url string) ([]byte, error) {
 func ParseNodes(data []string) (types.Nodes, []string) {
 	const vmessPrefix = vmessProtocol + "://"
 	const trojanPrefix = trojanProtocol + "://"
+	const ssPrefix = "ss" + "://"
 
 	var nodes types.Nodes
 	var retData []string
@@ -104,6 +106,17 @@ func ParseNodes(data []string) (types.Nodes, []string) {
 				retData = append(retData, data[i])
 			} else {
 				node.Protocol = trojanProtocol
+				nodes = append(nodes, node)
+			}
+
+		// ss
+		case strings.HasPrefix(data[i], ssPrefix):
+			data[i] = strings.ReplaceAll(data[i], ssPrefix, "")
+			node, ok := parseSSSub(data[i])
+			if !ok {
+				retData = append(retData, data[i])
+			} else {
+				node.Protocol = ssProtocol
 				nodes = append(nodes, node)
 			}
 
@@ -156,6 +169,57 @@ func parseTrojanSub(data string) (*types.Node, bool) {
 		Addr: addr,
 		Port: port,
 		UID:  id,
+	}, true
+}
+
+func parseSSSub(data string) (*types.Node, bool) {
+	idEnd := strings.Index(data, "@")
+	if idEnd < 0 {
+		return nil, false
+	}
+	id := data[:idEnd]
+	data = data[idEnd+1:]
+
+	addrEnd := strings.Index(data, ":")
+	if addrEnd < 0 {
+		return nil, false
+	}
+	addr := data[:addrEnd]
+	data = data[addrEnd+1:]
+
+	portEnd := strings.Index(data, "#")
+	if portEnd < 0 {
+		return nil, false
+	}
+	port, err := strconv.Atoi(data[:portEnd])
+	if err != nil {
+		return nil, false
+	}
+	data = data[portEnd+1:]
+
+	name, err := url.QueryUnescape(data) //URL解码
+	if err != nil {
+		return nil, false
+	}
+	name = name[:len(name)-1] //多一个 /r
+
+	byteID, err := base64.RawURLEncoding.DecodeString(id)
+	if err != nil {
+		return nil, false
+	}
+	strID := string(byteID)
+
+	methodEnd := strings.Index(strID, ":")
+	if methodEnd < 0 {
+		return nil, false
+	}
+
+	return &types.Node{
+		Name: name,
+		Addr: addr,
+		Port: port,
+		UID:  strID[methodEnd+1:],
+		Type: strID[:methodEnd],
 	}, true
 }
 

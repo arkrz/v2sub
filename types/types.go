@@ -61,6 +61,20 @@ type SocksServerConfig struct {
 	Port    int    `json:"port"`
 }
 
+type SSOutboundSetting struct {
+	Servers []SSServerConfig `json:"servers"`
+}
+
+type SSServerConfig struct {
+	Email    string `json:"email"`
+	Address  string `json:"address"`
+	Port     int    `json:"port"`
+	Method   string `json:"method"`
+	Password string `json:"password"`
+	OTA      bool   `json:"ota"`
+	Level    int    `json:"level"`
+}
+
 type StreamSetting struct {
 	Network  string `json:"network"`
 	Security string `json:"security"`

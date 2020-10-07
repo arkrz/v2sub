@@ -169,6 +169,19 @@ func main() {
 		streamSetting.Network = node.Net
 		streamSetting.Security = node.TLS
 
+	case ssProtocol:
+		v2rayOutboundProtocol = ssProtocol
+		outboundSetting = &types.SSOutboundSetting{Servers: []types.SSServerConfig{
+			{
+				Address:  node.Addr,
+				Port:     node.Port,
+				Method:   node.Type,
+				Password: node.UID,
+			},
+		}}
+		streamSetting.Network = "tcp"
+		streamSetting.Security = "none"
+
 	case trojanProtocol:
 		v2rayOutboundProtocol = socksProtocol
 
