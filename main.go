@@ -54,6 +54,11 @@ func main() {
 		return
 	}
 
+	if os.Getuid() != 0 {
+		fmt.Println("plz run v2sub as root")
+		return
+	}
+
 	if flags.quick {
 		flags.ping = false
 	}
