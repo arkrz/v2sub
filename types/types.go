@@ -94,12 +94,12 @@ type Node struct {
 	Addr     string `json:"add"`
 	Port     int    `json:"port"`
 	UID      string `json:"id"`
-	AID      string `json:"aid"`
 	Net      string `json:"net"`
 	Type     string `json:"type"`
 	Host     string `json:"host"`
 	TLS      string `json:"tls"`
 	Protocol string `json:"protocol"`
+	//AID      string `json:"aid"`
 
 	Ping int `json:"-"`
 }
