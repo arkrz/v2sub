@@ -90,16 +90,16 @@ type Trojan struct {
 }
 
 type Node struct {
-	Name     string `json:"ps"`
-	Addr     string `json:"add"`
-	Port     int    `json:"port"`
-	UID      string `json:"id"`
-	Net      string `json:"net"`
-	Type     string `json:"type"`
-	Host     string `json:"host"`
-	TLS      string `json:"tls"`
-	Protocol string `json:"protocol"`
-	//AID      string `json:"aid"`
+	Name     string      `json:"ps"`
+	Addr     string      `json:"add"`
+	Port     interface{} `json:"port"`
+	UID      string      `json:"id"`
+	Net      string      `json:"net"`
+	Type     string      `json:"type"`
+	Host     string      `json:"host"`
+	TLS      string      `json:"tls"`
+	Protocol string      `json:"protocol"`
+	AID      interface{} `json:"aid"`
 
 	Ping int `json:"-"`
 }

@@ -135,7 +135,7 @@ func main() {
 				Index: i,
 				Name:  nodes[i].Name,
 				Addr:  nodes[i].Addr,
-				Port:  nodes[i].Port,
+				Port:  parsePort(nodes[i].Port),
 				Ping:  nodes[i].Ping})
 		}
 		table.Output(tableData)
@@ -165,7 +165,7 @@ func main() {
 		outboundSetting = &types.VnextOutboundSetting{VNext: []types.VNextConfig{
 			{
 				Address: node.Addr,
-				Port:    node.Port,
+				Port:    parsePort(node.Port),
 				Users: []struct {
 					ID string `json:"id"`
 				}{{ID: node.UID}},
@@ -179,7 +179,7 @@ func main() {
 		outboundSetting = &types.SSOutboundSetting{Servers: []types.SSServerConfig{
 			{
 				Address:  node.Addr,
-				Port:     node.Port,
+				Port:     parsePort(node.Port),
 				Method:   node.Type,
 				Password: node.UID,
 			},
@@ -194,7 +194,7 @@ func main() {
 		trojan := template.TrojanTemplate // 是否需要从本地读取 trojan config?
 		trojan.Password = []string{node.UID}
 		trojan.RemoteAddr = node.Addr
-		trojan.RemotePort = node.Port
+		trojan.RemotePort = parsePort(node.Port)
 		if trojanRaw, err := json.Marshal(trojan); err != nil {
 			panic(err) // ?
 		} else {

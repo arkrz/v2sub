@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"github.com/ThomasZN/v2sub/template"
 	"github.com/ThomasZN/v2sub/types"
 	"io/ioutil"
@@ -245,4 +246,10 @@ func setRuleProxy(config *types.V2ray) {
 func setGlobalProxy(config *types.V2ray) {
 	config.DNSConfigs = nil
 	config.RouterConfig = nil
+}
+
+func parsePort(v interface{}) (port int) {
+	portStr := fmt.Sprintf("%v", v)
+	port, _ = strconv.Atoi(portStr)
+	return
 }
