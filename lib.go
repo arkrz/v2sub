@@ -53,7 +53,14 @@ func GetSub(url string, ch chan<- []string) {
 		}
 	}
 
-	res, err := base64.StdEncoding.DecodeString(string(body))
+	bodyStr := string(body)
+	complementLen := (4 - (len(bodyStr) % 4)) % 4
+
+	for i := 0; i < complementLen; i++ {
+		bodyStr += "="
+	}
+
+	res, err := base64.StdEncoding.DecodeString(bodyStr)
 	if err != nil {
 		ch <- nil
 		return // send nil
