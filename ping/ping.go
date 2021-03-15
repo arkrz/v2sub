@@ -16,7 +16,7 @@ func Ping(nodes types.Nodes, duration time.Duration) {
 		go func(ch chan<- [2]int, index int) {
 			pinger, err := gop.NewPinger(nodes[index].Addr)
 			if err != nil {
-				panic(err)
+				return // parse address error
 			}
 
 			pinger.Count = 4
