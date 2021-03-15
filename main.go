@@ -21,7 +21,7 @@ const (
 	duration     = 5 * time.Second // 建议至少 5s
 	//ruleUrl     = "https://raw.githubusercontent.com/PaPerseller/chn-iplist/master/v2ray-config_rule.txt"
 
-	version = "1.3.0"
+	version = "1.3.1"
 )
 
 var (
