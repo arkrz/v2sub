@@ -20,14 +20,20 @@ Go 编写的用于 linux 下订阅并简单配置 [v2ray](https://github.com/v2r
 
 因 ping 与 服务重启 权限需要，以 root 权限运行:
 
-```shell script
+```shell
 sudo ./v2sub
 ```
 
 快速切换节点：
 
-```shell script
+```shell
 sudo ./v2sub -q
+```
+
+允许监听外部连接：
+
+```shell
+sudo ./v2sub -wan=true
 ```
 
 更多帮助：
