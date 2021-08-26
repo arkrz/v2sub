@@ -32,6 +32,7 @@ var (
 		ping        bool
 		quick       bool
 		global      bool
+		wan         bool
 		url         string
 		v2rayConfig string
 	}{}
@@ -44,6 +45,7 @@ func main() {
 	flag.BoolVar(&flags.sort, "sort", false, "是否按延迟排序")
 	flag.BoolVar(&flags.global, "global", false, "是否全局代理")
 	flag.BoolVar(&flags.quick, "q", false, "是否快速切换")
+	flag.BoolVar(&flags.wan, "wan", false, "是否允许广域网连接")
 	flag.StringVar(&flags.v2rayConfig, "config", v2rayConfig, "v2ray 配置文件")
 	flag.BoolVar(&flags.version, "version", false, "显示版本")
 
@@ -241,6 +243,12 @@ func main() {
 		setGlobalProxy(&cfg.V2rayConfig)
 	} else {
 		setRuleProxy(&cfg.V2rayConfig)
+	}
+
+	if flags.wan {
+		listenOnWan(&cfg.V2rayConfig)
+	} else {
+		listenOnLocal(&cfg.V2rayConfig)
 	}
 
 	if data, err := json.Marshal(cfg); err != nil {

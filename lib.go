@@ -255,6 +255,18 @@ func setGlobalProxy(config *types.V2ray) {
 	config.RouterConfig = nil
 }
 
+func listenOnLocal(config *types.V2ray) {
+	for i := range config.InboundConfigs {
+		config.InboundConfigs[i].ListenOn = template.ListenOnLocalAddr
+	}
+}
+
+func listenOnWan(config *types.V2ray) {
+	for i := range config.InboundConfigs {
+		config.InboundConfigs[i].ListenOn = template.ListenOnWanAddr
+	}
+}
+
 func parsePort(v interface{}) (port int) {
 	portStr := fmt.Sprintf("%v", v)
 	port, _ = strconv.Atoi(portStr)
