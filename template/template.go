@@ -5,6 +5,11 @@ import (
 	"github.com/ThomasZN/v2sub/types"
 )
 
+const (
+	ListenOnLocalAddr = "127.0.0.1"
+	ListenOnWanAddr   = "0.0.0.0"
+)
+
 var domainStrategy = "ipondemand"
 
 var ConfigTemplate = &types.Config{
@@ -20,7 +25,7 @@ var ConfigTemplate = &types.Config{
 			{
 				Protocol: "socks",
 				Port:     1081,
-				ListenOn: "127.0.0.1",
+				ListenOn: ListenOnLocalAddr,
 				//PortRange: &conf.PortRange{ // [from, to]
 				//	From: 1080,
 				//	To:   1080,
@@ -30,7 +35,7 @@ var ConfigTemplate = &types.Config{
 			{
 				Protocol: "http",
 				Port:     1082,
-				ListenOn: "127.0.0.1",
+				ListenOn: ListenOnLocalAddr,
 			},
 		},
 	},
