@@ -1,1 +1,1 @@
-go build -trimpath -o v2sub
+go build -trimpath -ldflags="-s -w" -o v2sub
