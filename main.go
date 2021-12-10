@@ -100,12 +100,11 @@ func main() {
 		defer close(subCh)
 		select {
 		case <-time.After(duration):
-			fmt.Printf("%s 后仍未获取到订阅信息, 请检查订阅地址和网络状况\n", duration.String())
-			os.Exit(0)
+			ExitWithMsg(fmt.Sprintf("%s 后仍未获取到订阅信息, 请检查订阅地址和网络状况", duration.String()), 0)
+
 		case data := <-subCh:
 			if data == nil {
-				fmt.Println("base64 解码错误, 请核实订阅编码")
-				os.Exit(0)
+				ExitWithMsg("base64 解码错误, 请核实订阅编码", 0)
 			}
 			nodes, data = ParseNodes(data)
 			if len(data) != 0 {
@@ -198,7 +197,7 @@ func main() {
 		trojan.RemoteAddr = node.Addr
 		trojan.RemotePort = parsePort(node.Port)
 		if trojanRaw, err := json.Marshal(trojan); err != nil {
-			panic(err) // ?
+			ExitWithMsg(err, 1)
 		} else {
 			if err = WriteFile(trojanConfig, trojanRaw); err != nil {
 				fmt.Printf("写入 trojan 配置文件错误: %v\n", err)
@@ -222,11 +221,11 @@ func main() {
 		streamSetting.Security = "none"
 
 	default:
-		panic("unexpected protocol: " + node.Protocol) // ?
+		ExitWithMsg("unexpected protocol: "+node.Protocol, 1)
 	}
 
 	if setting, err := json.Marshal(outboundSetting); err != nil {
-		panic(err) // ?
+		ExitWithMsg(err, 1)
 	} else {
 		var rawSetting json.RawMessage = setting
 		cfg.V2rayConfig.OutboundConfigs = append([]types.OutboundConfig{
@@ -252,7 +251,7 @@ func main() {
 	}
 
 	if data, err := json.Marshal(cfg); err != nil {
-		panic(err) // ?
+		ExitWithMsg(err, 1)
 	} else {
 		if err = WriteFile(v2subConfig, data); err != nil {
 			fmt.Printf("写入 v2sub 配置文件错误: %v\n", err)
@@ -261,7 +260,7 @@ func main() {
 	}
 
 	if v2rayCfgData, err := json.Marshal(&cfg.V2rayConfig); err != nil {
-		panic(err) // ?
+		ExitWithMsg(err, 1)
 	} else {
 		if err = WriteFile(flags.v2rayConfig, v2rayCfgData); err != nil {
 			fmt.Printf("写入 v2ray 配置文件错误: %v\n", err)

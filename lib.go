@@ -21,6 +21,13 @@ const (
 	ssProtocol     = "shadowsocks"
 )
 
+// ExitWithMsg 输出 msg 并退出
+func ExitWithMsg(msg interface{}, code int) {
+	fmt.Println(msg)
+	os.Exit(code)
+}
+
+// FileExist 判断文件是否存在
 func FileExist(name string) bool {
 	fileInfo, err := os.Stat(name)
 	if err != nil || fileInfo.IsDir() {
@@ -29,6 +36,7 @@ func FileExist(name string) bool {
 	return true
 }
 
+// ReadConfig 读取 v2sub 配置文件
 func ReadConfig(name string) (*types.Config, error) {
 	data, err := ioutil.ReadFile(name)
 	if err != nil {
@@ -42,7 +50,7 @@ func ReadConfig(name string) (*types.Config, error) {
 	return cfg, nil
 }
 
-// 从url中获取订阅信息并进行base64解码
+// GetSub 从url中获取订阅信息并进行base64解码
 // http请求错误不发送任何信息; 解码错误发送nil
 func GetSub(url string, ch chan<- []string) {
 	body, err := httpGet(url)
@@ -81,7 +89,7 @@ func httpGet(url string) ([]byte, error) {
 	return ioutil.ReadAll(data.Body)
 }
 
-// 返回正确解析的节点 以及 无法解析的数据
+// ParseNodes 返回正确解析的节点 以及 无法解析的数据
 func ParseNodes(data []string) (types.Nodes, []string) {
 	const vmessPrefix = vmessProtocol + "://"
 	const trojanPrefix = trojanProtocol + "://"
@@ -231,6 +239,8 @@ func parseSSSub(data string) (*types.Node, bool) {
 	}, true
 }
 
+// WriteFile 覆写文件
+// 若文件不存在则会创建并写入
 func WriteFile(name string, data []byte) error {
 	file, err := os.Create(name)
 	if err != nil {
