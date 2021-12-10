@@ -8,6 +8,12 @@ import (
 const (
 	ListenOnLocalAddr = "127.0.0.1"
 	ListenOnWanAddr   = "0.0.0.0"
+
+	ListenOnSocksProtocol = "socks"
+	ListenOnSocksPort     = 1081
+
+	ListenOnHttpProtocol = "http"
+	ListenOnHttpPort     = 1082
 )
 
 var domainStrategy = "ipondemand"
@@ -23,8 +29,8 @@ var ConfigTemplate = &types.Config{
 		OutboundConfigs: []types.OutboundConfig{},
 		InboundConfigs: []types.InboundConfig{
 			{
-				Protocol: "socks",
-				Port:     1081,
+				Protocol: ListenOnSocksProtocol,
+				Port:     ListenOnSocksPort,
 				ListenOn: ListenOnLocalAddr,
 				//PortRange: &conf.PortRange{ // [from, to]
 				//	From: 1080,
@@ -33,8 +39,8 @@ var ConfigTemplate = &types.Config{
 				//ListenOn: &conf.Address{Address: net.ParseAddress("127.0.0.1")},
 			},
 			{
-				Protocol: "http",
-				Port:     1082,
+				Protocol: ListenOnHttpProtocol,
+				Port:     ListenOnHttpPort,
 				ListenOn: ListenOnLocalAddr,
 			},
 		},

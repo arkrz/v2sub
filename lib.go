@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/arkrz/v2sub/template"
 	"github.com/arkrz/v2sub/types"
+	"github.com/modood/table"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -277,8 +278,49 @@ func listenOnWan(config *types.V2ray) {
 	}
 }
 
+func listenOnPort(config *types.V2ray) {
+	for i := range config.InboundConfigs {
+		switch config.InboundConfigs[i].Protocol {
+		case template.ListenOnSocksProtocol:
+			if flags.socksPort != 0 {
+				config.InboundConfigs[i].Port = uint32(flags.socksPort)
+			}
+
+		case template.ListenOnHttpProtocol:
+			if flags.httpPort != 0 {
+				config.InboundConfigs[i].Port = uint32(flags.httpPort)
+			}
+		}
+	}
+}
+
 func parsePort(v interface{}) (port int) {
 	portStr := fmt.Sprintf("%v", v)
 	port, _ = strconv.Atoi(portStr)
 	return
+}
+
+func printAsTable(nodes types.Nodes) {
+	var tableData []types.TableRow
+	for i := range nodes {
+		tableData = append(tableData, types.TableRow{
+			Index: i,
+			Name:  nodes[i].Name,
+			Addr:  nodes[i].Addr,
+			Port:  parsePort(nodes[i].Port),
+			Ping:  nodes[i].Ping})
+	}
+	table.Output(tableData)
+}
+
+func allDone(cfg *types.Config) {
+	var msg string
+	for _, inboundConfig := range cfg.V2rayConfig.InboundConfigs {
+		if len(msg) == 0 {
+			msg = "\n开始监听...\n"
+		}
+		msg += fmt.Sprintf("%s://%s:%d\n", inboundConfig.Protocol, inboundConfig.ListenOn, inboundConfig.Port)
+	}
+	msg += "\nAll done."
+	fmt.Println(msg)
 }

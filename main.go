@@ -7,7 +7,6 @@ import (
 	"github.com/arkrz/v2sub/ping"
 	"github.com/arkrz/v2sub/template"
 	"github.com/arkrz/v2sub/types"
-	"github.com/modood/table"
 	"os"
 	"os/exec"
 	"sort"
@@ -35,6 +34,9 @@ var (
 		wan         bool
 		url         string
 		v2rayConfig string
+
+		socksPort uint
+		httpPort  uint
 	}{}
 )
 
@@ -48,6 +50,8 @@ func main() {
 	flag.BoolVar(&flags.wan, "wan", false, "是否允许广域网连接")
 	flag.StringVar(&flags.v2rayConfig, "config", v2rayConfig, "v2ray 配置文件")
 	flag.BoolVar(&flags.version, "version", false, "显示版本")
+	flag.UintVar(&flags.socksPort, "socks", 0, "socks 监听端口")
+	flag.UintVar(&flags.httpPort, "http", 0, "http 监听端口")
 
 	flag.Parse()
 
@@ -65,7 +69,7 @@ func main() {
 		flags.ping = false
 	}
 
-	//本地配置文件读取
+	// 本地配置文件读取
 	if exist := FileExist(v2subConfig); !exist {
 		fmt.Printf("首次运行 v2sub, 将创建 %s\n", v2subConfig)
 	}
@@ -74,7 +78,7 @@ func main() {
 		fmt.Printf("v2sub 配置文件损坏: %v\n", err)
 	}
 
-	//获取节点
+	// 获取节点
 	var nodes = func() types.Nodes {
 		if !flags.sub && flags.url == "" && len(cfg.Nodes) != 0 {
 			fmt.Println("使用缓存的订阅信息, 如需刷新请指定 -sub")
@@ -128,21 +132,10 @@ func main() {
 		}
 	}
 
-	//表格打印
-	{
-		var tableData []types.TableRow
-		for i := range nodes {
-			tableData = append(tableData, types.TableRow{
-				Index: i,
-				Name:  nodes[i].Name,
-				Addr:  nodes[i].Addr,
-				Port:  parsePort(nodes[i].Port),
-				Ping:  nodes[i].Ping})
-		}
-		table.Output(tableData)
-	}
+	// 表格打印
+	printAsTable(nodes)
 
-	//节点选择
+	// 节点选择
 	node := func(nodes types.Nodes) *types.Node {
 		for {
 			fmt.Print("输入节点序号:")
@@ -159,7 +152,7 @@ func main() {
 
 	var v2rayOutboundProtocol string
 	var outboundSetting interface{}
-	var streamSetting types.StreamSetting //v2ray.streamSettings
+	var streamSetting types.StreamSetting // v2ray.streamSettings
 	switch node.Protocol {
 	case vmessProtocol:
 		v2rayOutboundProtocol = vmessProtocol
@@ -250,6 +243,9 @@ func main() {
 		listenOnLocal(&cfg.V2rayConfig)
 	}
 
+	// 修改监听端口
+	listenOnPort(&cfg.V2rayConfig)
+
 	if data, err := json.Marshal(cfg); err != nil {
 		ExitWithMsg(err, 1)
 	} else {
@@ -273,5 +269,5 @@ func main() {
 		}
 	}
 
-	fmt.Println("All done.")
+	allDone(cfg)
 }
