@@ -1,0 +1,1 @@
+go build -trimpath -o v2sub

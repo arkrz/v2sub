@@ -7,6 +7,7 @@ import (
 )
 
 func Ping(nodes types.Nodes, duration time.Duration) {
+	timer := time.After(duration)
 	ch := make(chan [2]int, len(nodes))
 	//defer close(ch)  后续写入会导致 panic
 
@@ -32,7 +33,7 @@ func Ping(nodes types.Nodes, duration time.Duration) {
 
 	for {
 		select {
-		case <-time.After(duration):
+		case <-timer:
 			return
 		case res := <-ch:
 			if res[1] != 0 {

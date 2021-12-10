@@ -9,8 +9,7 @@ Go 编写的用于 linux 下订阅并简单配置 [v2ray](https://github.com/v2r
 ## Features
 
 + 内置直接可用的配置文件和代理规则，监听 socks \[1081\] 和 http \[1082\]
-+ 并发测试节点延迟 (ping)
-+ 表格形式打印所有节点
++ 并发测试节点延迟 (icmp ping)
 + ~~可更新代理规则~~ 内置代理规则使用DNS分流+白名单
 + 支持 VMess / SS / [Trojan](https://github.com/trojan-gfw/trojan) 订阅与配置
 
@@ -21,25 +20,31 @@ Go 编写的用于 linux 下订阅并简单配置 [v2ray](https://github.com/v2r
 因 ping 与 服务重启 权限需要，以 root 权限运行:
 
 ```shell
-sudo ./v2sub
+sudo v2sub
 ```
 
 快速切换节点：
 
 ```shell
-sudo ./v2sub -q
+sudo v2sub -q
 ```
 
 允许监听外部连接：
 
 ```shell
-sudo ./v2sub -wan=true
+sudo v2sub -wan
+```
+
+修改监听端口：
+
+```shell
+sudo v2sub -http 7890
 ```
 
 更多帮助：
 
 ```shell script
-./v2sub -help
+v2sub -help
 ```
 
 ## Note

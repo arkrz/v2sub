@@ -47,7 +47,8 @@ var ConfigTemplate = &types.Config{
 	},
 }
 
-//参考 https://toutyrater.github.io/routing/configurate_rules.html
+// DefaultDNSConfigs 默认路由规则
+// 参考 https://toutyrater.github.io/routing/configurate_rules.html
 var DefaultDNSConfigs = &types.DNSConfig{Servers: []json.RawMessage{
 	[]byte(`"114.114.114.114"`),
 	[]byte(
