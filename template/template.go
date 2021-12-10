@@ -2,7 +2,7 @@ package template
 
 import (
 	"encoding/json"
-	"github.com/ThomasZN/v2sub/types"
+	"github.com/arkrz/v2sub/types"
 )
 
 const (

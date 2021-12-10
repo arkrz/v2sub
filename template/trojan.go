@@ -1,6 +1,6 @@
 package template
 
-import "github.com/ThomasZN/v2sub/types"
+import "github.com/arkrz/v2sub/types"
 
 var TrojanTemplate = &types.Trojan{
 	RunType:    "client",

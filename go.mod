@@ -1,4 +1,4 @@
-module github.com/ThomasZN/v2sub
+module github.com/arkrz/v2sub
 
 go 1.12
 

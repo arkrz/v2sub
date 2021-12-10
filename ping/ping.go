@@ -1,7 +1,7 @@
 package ping
 
 import (
-	"github.com/ThomasZN/v2sub/types"
+	"github.com/arkrz/v2sub/types"
 	gop "github.com/sparrc/go-ping"
 	"time"
 )
