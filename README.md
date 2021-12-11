@@ -8,8 +8,8 @@ Go 编写的用于 linux 下订阅并简单配置 [v2ray](https://github.com/v2r
 
 ## Features
 
-+ 内置直接可用的配置文件和代理规则，监听 socks \[1081\] 和 http \[1082\]
-+ 并发测试节点延迟 (icmp ping)
++ 内置配置文件和代理规则，默认监听 socks \[1081\] 和 http \[1082\]
++ icmp ping 测试节点延迟
 + ~~可更新代理规则~~ 内置代理规则使用DNS分流+白名单
 + 支持 VMess / SS / [Trojan](https://github.com/trojan-gfw/trojan) 订阅与配置
 
@@ -38,7 +38,7 @@ sudo v2sub -wan
 修改监听端口：
 
 ```shell
-sudo v2sub -http 7890
+sudo v2sub -http 7890 -socks 7891
 ```
 
 更多帮助：
