@@ -14,9 +14,9 @@ import (
 )
 
 const (
-	v2subConfig  = "/etc/v2sub.json"
-	v2rayConfig  = "/etc/v2ray.json"
-	trojanConfig = "/etc/trojan.json"
+	v2subConfig  = "/etc/v2sub/config.json"
+	v2rayConfig  = "/etc/v2ray/config.json"
+	trojanConfig = "/etc/trojan/config.json"
 	duration     = 5 * time.Second // 建议至少 5s
 	//ruleUrl     = "https://raw.githubusercontent.com/PaPerseller/chn-iplist/master/v2ray-config_rule.txt"
 
@@ -156,17 +156,33 @@ func main() {
 	switch node.Protocol {
 	case vmessProtocol:
 		v2rayOutboundProtocol = vmessProtocol
+		var users = []types.Users{
+		{
+		    AlterId : parsePort(node.AID),
+		    ID : node.UID,
+		    },
+		}
 		outboundSetting = &types.VnextOutboundSetting{VNext: []types.VNextConfig{
 			{
 				Address: node.Addr,
 				Port:    parsePort(node.Port),
-				Users: []struct {
-					ID string `json:"id"`
-				}{{ID: node.UID}},
+				Users: users,
 			},
 		}}
-		streamSetting.Network = node.Net
-		streamSetting.Security = node.TLS
+		var tlssettings = types.TlsSettings{
+		    AllowInsecure : true,
+		}
+
+		var wssettings = types.WsSettings{
+		    Path : node.Path,
+		}
+
+		streamSetting = types.StreamSetting{ 
+		    Network : node.Net,
+		    Security : node.TLS,
+		    TlsSettings : &tlssettings,
+		    WsSettings : &wssettings,
+		}
 
 	case ssProtocol:
 		v2rayOutboundProtocol = ssProtocol
