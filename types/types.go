@@ -47,9 +47,12 @@ type VNextConfig struct {
 	Address string `json:"address"`
 	Port    int    `json:"port"`
 	Tag     string `json:"tag"`
-	Users   []struct {
-		ID string `json:"id"`
-	} `json:"users"`
+	Users   []Users `json:"users"`
+}
+
+type Users struct {
+	AlterId int `json:"alterId"`
+	ID string `json:"id"`
 }
 
 type SocksOutboundSetting struct {
@@ -78,6 +81,16 @@ type SSServerConfig struct {
 type StreamSetting struct {
 	Network  string `json:"network"`
 	Security string `json:"security"`
+	TlsSettings *TlsSettings `json:"tlsSettings"`
+	WsSettings *WsSettings `json:"wsSettings"`
+}
+
+type TlsSettings struct {
+	AllowInsecure bool `json:"allowInsecure"`
+}
+
+type WsSettings struct {
+	Path string `json:"path"`
 }
 
 type Trojan struct {
@@ -95,6 +108,7 @@ type Node struct {
 	Port     interface{} `json:"port"`
 	UID      string      `json:"id"`
 	Net      string      `json:"net"`
+	Path     string      `json:"path"`
 	Type     string      `json:"type"`
 	Host     string      `json:"host"`
 	TLS      string      `json:"tls"`
