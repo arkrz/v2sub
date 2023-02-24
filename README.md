@@ -2,9 +2,9 @@
 
 Go 编写的用于 linux 下订阅并简单配置 [v2ray](https://github.com/v2ray/v2ray-core) 的命令行工具。
 
-程序会创建 `/etc/v2sub.json` 文件用于存储订阅信息。
+程序会创建 `/etc/v2sub/config.json` 文件用于存储订阅信息。
 
-使用前需确保 v2ray.service 服务已注册且默认 v2ray 配置文件路径为 `/etc/v2ray.json`。
+使用前需确保 v2ray.service 服务已注册且默认 v2ray 配置文件路径为 `/etc/v2ray/config.json`。
 
 ## Features
 
@@ -49,7 +49,7 @@ v2sub -help
 
 ## Note
 
-trojan 功能通过 v2ray 转发实现，因此可以使用规则代理。使用前需确保 trojan.service 服务已注册且默认配置文件路径为 `/etc/trojan.json`。
+trojan 功能通过 v2ray 转发实现，因此可以使用规则代理。使用前需确保 trojan.service 服务已注册且默认配置文件路径为 `/etc/trojan/config.json`。
 
 ## Warning
 

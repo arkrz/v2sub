@@ -47,12 +47,10 @@ type VNextConfig struct {
 	Address string `json:"address"`
 	Port    int    `json:"port"`
 	Tag     string `json:"tag"`
-	Users   []Users `json:"users"`
-}
-
-type Users struct {
-	AlterId int `json:"alterId"`
-	ID string `json:"id"`
+	Users   []struct {
+		AlterId int `json:"alterId"`
+		ID string `json:"id"`
+	} `json:"users"`
 }
 
 type SocksOutboundSetting struct {
@@ -106,9 +104,9 @@ type Node struct {
 	Name     string      `json:"ps"`
 	Addr     string      `json:"add"`
 	Port     interface{} `json:"port"`
+	Path     string      `json:"path"`
 	UID      string      `json:"id"`
 	Net      string      `json:"net"`
-	Path     string      `json:"path"`
 	Type     string      `json:"type"`
 	Host     string      `json:"host"`
 	TLS      string      `json:"tls"`

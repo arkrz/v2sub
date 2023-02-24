@@ -300,6 +300,12 @@ func parsePort(v interface{}) (port int) {
 	return
 }
 
+func parseAID(v interface{}) (aid int) {
+	aidStr := fmt.Sprintf("%v", v)
+	aid, _ = strconv.Atoi(aidStr)
+	return
+}
+
 func printAsTable(nodes types.Nodes) {
 	var tableData []types.TableRow
 	for i := range nodes {

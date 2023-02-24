@@ -156,19 +156,17 @@ func main() {
 	switch node.Protocol {
 	case vmessProtocol:
 		v2rayOutboundProtocol = vmessProtocol
-		var users = []types.Users{
-		{
-		    AlterId : parsePort(node.AID),
-		    ID : node.UID,
-		    },
-		}
 		outboundSetting = &types.VnextOutboundSetting{VNext: []types.VNextConfig{
 			{
 				Address: node.Addr,
 				Port:    parsePort(node.Port),
-				Users: users,
+				Users: []struct {
+					AlterId int `json:"alterId"`
+					ID string `json:"id"`
+				}{{AlterId:parseAID(node.AID),ID: node.UID}},
 			},
 		}}
+
 		var tlssettings = types.TlsSettings{
 		    AllowInsecure : true,
 		}
