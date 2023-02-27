@@ -88,7 +88,12 @@ type TlsSettings struct {
 }
 
 type WsSettings struct {
+	Headers *Headers `json:"headers"`
 	Path string `json:"path"`
+}
+
+type Headers struct {
+	Host string `json:"Host"`
 }
 
 type Trojan struct {
@@ -104,11 +109,11 @@ type Node struct {
 	Name     string      `json:"ps"`
 	Addr     string      `json:"add"`
 	Port     interface{} `json:"port"`
-	Path     string      `json:"path"`
 	UID      string      `json:"id"`
 	Net      string      `json:"net"`
 	Type     string      `json:"type"`
 	Host     string      `json:"host"`
+	Path     string      `json:"path"`
 	TLS      string      `json:"tls"`
 	Protocol string      `json:"protocol"`
 	AID      interface{} `json:"aid"`

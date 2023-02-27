@@ -171,7 +171,12 @@ func main() {
 		    AllowInsecure : true,
 		}
 
+		var headers = types.Headers{
+		    Host : node.Host,
+		}
+
 		var wssettings = types.WsSettings{
+		    Headers : &headers,
 		    Path : node.Path,
 		}
 
