@@ -120,9 +120,10 @@ func (ns Nodes) Less(i, j int) bool {
 func (ns Nodes) Swap(i, j int) { ns[i], ns[j] = ns[j], ns[i] }
 
 type TableRow struct {
-	Index int
-	Name  string
-	Addr  string
-	Port  int
-	Ping  int
+	Index    int
+	Name     string
+	Addr     string
+	Port     int
+	Protocol string
+	Ping     int
 }

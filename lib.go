@@ -304,11 +304,12 @@ func printAsTable(nodes types.Nodes) {
 	var tableData []types.TableRow
 	for i := range nodes {
 		tableData = append(tableData, types.TableRow{
-			Index: i,
-			Name:  nodes[i].Name,
-			Addr:  nodes[i].Addr,
-			Port:  parsePort(nodes[i].Port),
-			Ping:  nodes[i].Ping})
+			Index:    i,
+			Name:     nodes[i].Name,
+			Addr:     nodes[i].Addr,
+			Port:     parsePort(nodes[i].Port),
+			Protocol: nodes[i].Protocol,
+			Ping:     nodes[i].Ping})
 	}
 	table.Output(tableData)
 }
