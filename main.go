@@ -17,8 +17,9 @@ const (
 	v2subConfig  = "/etc/v2sub.json"
 	v2rayConfig  = "/etc/v2ray.json"
 	trojanConfig = "/etc/trojan.json"
-	duration     = 5 * time.Second // 建议至少 5s
-	//ruleUrl     = "https://raw.githubusercontent.com/PaPerseller/chn-iplist/master/v2ray-config_rule.txt"
+
+	waitingForSub  = 10 * time.Second
+	waitingForPing = 5 * time.Second
 
 	version = "1.4"
 )
@@ -103,8 +104,8 @@ func main() {
 		go GetSub(cfg.SubUrl, subCh)
 		defer close(subCh)
 		select {
-		case <-time.After(duration):
-			ExitWithMsg(fmt.Sprintf("%s 后仍未获取到订阅信息, 请检查订阅地址和网络状况", duration.String()), 0)
+		case <-time.After(waitingForSub):
+			ExitWithMsg(fmt.Sprintf("%s 后仍未获取到订阅信息, 请检查订阅地址和网络状况", waitingForSub.String()), 0)
 
 		case data := <-subCh:
 			if data == nil {
@@ -124,8 +125,8 @@ func main() {
 	}()
 
 	if flags.ping {
-		fmt.Printf("正在测试延迟, 等待 %s...\n", duration.String())
-		ping.Ping(nodes, duration)
+		fmt.Printf("正在测试延迟, 等待 %s...\n", waitingForPing.String())
+		ping.Ping(nodes, waitingForPing)
 
 		if flags.sort {
 			sort.Sort(nodes)
