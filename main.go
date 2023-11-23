@@ -38,6 +38,8 @@ var (
 
 		socksPort uint
 		httpPort  uint
+
+		subscribeDataFilePath string
 	}{}
 )
 
@@ -53,6 +55,7 @@ func main() {
 	flag.BoolVar(&flags.version, "version", false, "显示版本")
 	flag.UintVar(&flags.socksPort, "socks", 0, "socks 监听端口")
 	flag.UintVar(&flags.httpPort, "http", 0, "http 监听端口")
+	flag.StringVar(&flags.subscribeDataFilePath, "sub_data", "", "订阅连接的文件内容")
 
 	flag.Parse()
 
@@ -90,18 +93,20 @@ func main() {
 			cfg.SubUrl = flags.url
 		}
 
-		if cfg.SubUrl == "" {
-			fmt.Print("输入订阅地址:")
-			_, _ = fmt.Scan(&cfg.SubUrl)
-		} else {
-			fmt.Printf("订阅地址: %s\n", cfg.SubUrl)
+		if len(flags.subscribeDataFilePath) == 0 {
+			if cfg.SubUrl == "" {
+				fmt.Print("输入订阅地址:")
+				_, _ = fmt.Scan(&cfg.SubUrl)
+			} else {
+				fmt.Printf("订阅地址: %s\n", cfg.SubUrl)
+			}
 		}
 
 		fmt.Println("开始解析订阅信息...")
 
 		var nodes types.Nodes
 		subCh := make(chan []string, 1)
-		go GetSub(cfg.SubUrl, subCh)
+		go GetSub(flags.subscribeDataFilePath, cfg.SubUrl, subCh)
 		defer close(subCh)
 		select {
 		case <-time.After(waitingForSub):

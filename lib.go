@@ -53,16 +53,26 @@ func ReadConfig(name string) (*types.Config, error) {
 
 // GetSub 从url中获取订阅信息并进行base64解码
 // http请求错误不发送任何信息; 解码错误发送nil
-func GetSub(url string, ch chan<- []string) {
-	body, err := httpGet(url)
-	if err != nil {
-		body, err = httpGet(url) // 尝试两次
+func GetSub(subscribeDataFilePath string, url string, ch chan<- []string) {
+	var bodyStr string
+
+	if len(subscribeDataFilePath) > 0 {
+		contentBytes, err := os.ReadFile(subscribeDataFilePath)
 		if err != nil {
-			return // send none
+			return
 		}
+		bodyStr = string(contentBytes)
+	} else {
+		body, err := httpGet(url)
+		if err != nil {
+			body, err = httpGet(url) // 尝试两次
+			if err != nil {
+				return // send none
+			}
+		}
+		bodyStr = string(body)
 	}
 
-	bodyStr := string(body)
 	complementLen := (4 - (len(bodyStr) % 4)) % 4
 
 	for i := 0; i < complementLen; i++ {
